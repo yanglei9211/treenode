@@ -11,6 +11,7 @@ from tornado.web import Application
 from tornado.ioloop import IOLoop
 from tornado.options import options, parse_command_line, parse_config_file
 from jinja2 import ChoiceLoader, FileSystemLoader
+from pymongo import MongoClient
 
 import settings
 from util.template import JinjaLoader
@@ -20,6 +21,7 @@ from routes import get_routes
 
 class YWeb(object):
     def __init__(self, **more_settings):
+        self.db_client = None
         settings.define_app_options()
         parse_command_line(final=False)
         self_dir_path = os.path.abspath(os.path.dirname(__file__))
@@ -34,6 +36,9 @@ class YWeb(object):
         loader = ChoiceLoader([
             FileSystemLoader(os.path.join(self_dir_path, 'templates')),
         ])
+
+        self.setup_db_client()
+
         the_settings = {
             'template_loader': JinjaLoader(loader=loader),
             'debug': options.debug,
@@ -41,17 +46,21 @@ class YWeb(object):
             'xsrf_cookies': True,
             'static_path': os.path.join(os.path.dirname(__file__), "static")
         }
-
         the_settings.update(more_settings)
         routes = get_routes()
         self.app = Application(routes, **the_settings)
+        self.app.db = self.db_client[options.mongodb_name]
         self.app.settings['template_loader'].env.globals.update({
             'options': options,
             'datetime': datetime.datetime,
         })
 
     def setup_db_client(self):
-        pass
+        host = options.mongodb_host
+        port = options.mongodb_port
+        logging.info("connecting to database %s:%s" % (host, port))
+        client = MongoClient(host, port)
+        self.db_client = client
 
     def setup_user_db(self):
         pass

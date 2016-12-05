@@ -20,7 +20,7 @@ class BaseHandler(RequestHandler):
         path = self.request.path
         user = self.current_user
         logging.info('user:%s is accessing %s' % (user, uri))
-
+        self.db = self.application.db
         if user is None and not self.allow_anony:
             self.redirect('/auth/login')
             return
@@ -48,8 +48,16 @@ class BaseHandler(RequestHandler):
     def is_manager(self):
         return self.current_user and self.current_user['role'] == USER_ROLE_MANAGER
 
+    @property
+    def db(self):
+        return self._db
+
+    @db.setter
+    def db(self, db):
+        self._db = db
+
     def get_argument(self, name, *args, **kwargs):
-        type_ = kwargs.pop("type_" ,None)
+        type_ = kwargs.pop("type_", None)
         arg = super(BaseHandler, self).get_argument(name, *args, **kwargs)
         if type_ and isinstance(arg, basestring):
             return safe_typed_from_str(arg, type_)
@@ -93,7 +101,6 @@ class BaseHandler(RequestHandler):
 
     def render(self, template, **kwargs):
         # todo render common date
-        print kwargs
         return super(BaseHandler, self).render(
             template, **kwargs)
 

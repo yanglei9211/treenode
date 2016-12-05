@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block css %}
+    <link href="{{ static_url('ztree/css/demo.css')}}" rel="stylesheet">
+    <link href="{{ static_url('ztree/css/zTreeStyle/zTreeStyle.css') }}" rel="stylesheet">
+    <link href="{{ static_url('ztree/css/right_menu.css') }}" rel="stylesheet">
+{% endblock %}
+{% block body %}
+<div>
+    <ul id="treeNodes" class="ztree"></ul>
+    <ul id="rMenu">
+        <li id="r_add">增加节点</li>
+        <li id="r_update">修改节点</li>
+        <li id="r_del">删除节点</li>
+    </ul>
+</div>
+{% endblock %}
+{% block js %}
+<script src="{{ static_url('ztree/js/jquery.ztree.core.min.js') }}"></script>
+<script src="{{ static_url('ztree/js/jquery.ztree.excheck.js') }}"></script>
+<script src="{{ static_url('ztree/js/jquery.ztree.exedit.js') }}"></script>
+<script src="{{ static_url('js/y.js') }}"></script>
+<script>
+var zTreeObj;
+var setting = {
+    edit: {
+        enable: true,
+        showRemoveBtn: false,
+        showRenameBtn: false,
+        drag:{
+            isCopy: true,
+            isMove: true,
+            prev: true,
+            inner: true,
+            next: true
+        }
+    },
+    callback: {
+        onRightClick: OnRightClick,
+        beforeDrag: beforeDrag,
+        beforeDrop: beforeDrop,
+        onDrop: onDrop
+    },
+    data: {
+        simpleData:{
+            enable:true
+        }
+    }
+};
+
+//var zNodes;
+var zNodes = [
+];
+var rMenu;
+
+function OnRightClick(event, treeId, treeNode){
+    var zTree = $.fn.zTree.getZTreeObj("treeNodes");
+    if (event.target.className.toLowerCase() != "node_name"){
+        return
+    }
+    if (!treeNode && event.target.tagName.toLowerCase() != "button" && $(event.target).parent("a").length == 0){
+        zTree.cancelSelectedNode();
+        showRMenu("root", event.clientX, event.clientY);
+    }else {
+        zTree.selectNode(treeNode);
+        showRMenu("node", event.clientX, event.clientY);
+    }
+}
+
+function beforeDrag(treeId, treeNodes){
+    for (var i=0, l=treeNodes.length; i<l; i++){
+        if (treeNodes[i].drag === false){
+            return false
+        }
+    }
+    return true
+}
+
+function beforeDrop(treeId, treeNodes, targetNode, moveType) {
+    console.log(moveType)
+    if (moveType != 'inner' && 'is_root' in targetNode)
+        return false;
+    return targetNode ? targetNode.drop !== false: true
+}
+
+function onDrop(event, treeId, treeNodes, targetNode, moveType, isCopy){
+
+    update_index(treeNodes[0], targetNode, moveType)
+}
+
+
+function showRMenu(type, x, y){
+    $('#rMenu ul').show();
+    if (type == 'root'){
+        $('#r_add').hide();
+        $('#r_update').hide();
+        $('#r_del').hide();
+    }else {
+        $('#r_add').show();
+        $('#r_update').show();
+        $('#r_del').show();
+    }
+    rMenu.css({'top': y+'px', 'left':x+'px', 'visibility':'visible'});
+    $('body').bind('mousedown', onBodyMouseDown);
+}
+
+function hideRMent(){
+    if (rMenu) rMenu.css({'visibility': 'hidden'});
+    $('body').unbind('mousedown', onBodyMouseDown);
+}
+
+function onBodyMouseDown(event){
+    if (!(event.target.id == "rMenu" || $(event.target).parents('#rMenu').length>0)){
+        rMenu.css({'visibility': 'hidden'});
+    }
+}
+
+function update_index(node, target, moveType){
+    var ids = [];
+    var parent, children;
+    if (moveType == 'inner'){
+        parent = target;
+        children = parent.children;
+        for (var i = 0; i < children.length; i++){
+            ids.push(children[i]['id'])
+        }
+
+    }else if (moveType == 'prev' || moveType == 'next') {
+        parent = target.getParentNode();
+        children = parent.children;
+        for (var i = 0; i < children.length; i++){
+            ids.push(children[i]['id'])
+        }
+    }
+    var args = {
+        action: 'update_index',
+        ids: ids,
+        parent: parent['id']
+    };
+    var url = sprintf('/tree/node/%s', node['id']);
+    y.post(url, args, function (data) {
+
+    });
+
+}
+
+$('#r_add').click(function () {
+    var zTree = $.fn.zTree.getZTreeObj("treeNodes");
+    hideRMent();
+    var name = prompt("请输入知识点: ");
+    if (name == null){
+        return;
+    };
+    name = name.trim();
+    if (name == ""){
+        alert("知识点不能为空!");
+        return;
+    };
+    var parent = zTree.getSelectedNodes()[0];
+    var args = {
+        action: 'add',
+        name: name,
+        type: '{{ cur_type }}',
+        parent: parent['id']
+    };
+    var url = sprintf('/tree/node/%s', parent['id']);
+    y.post(url, args, function (data) {
+        console.log(data);
+        var newNode = data['node'];
+        zTree.addNodes(parent, newNode)
+    });
+
+});
+
+$('#r_update').click(function () {
+    var zTree = $.fn.zTree.getZTreeObj("treeNodes");
+    hideRMent();
+    var target = zTree.getSelectedNodes()[0];
+    var pre = target.getPreNode();
+    var suff = target.getNextNode();
+    alert(zTree.getNodeIndex(target));
+    console.log(pre);
+    console.log(suff);
+    //alert('update');
+});
+
+$('#r_del').click(function () {
+    hideRMent();
+    alert('del');
+});
+
+
+
+$(document).ready(function () {
+    y.get('/tree/search/{{ cur_type }}', {}, function (data) {
+        zNodes = data['nodes'];
+        console.log(zNodes);
+        $.fn.zTree.init($('#treeNodes'), setting, zNodes);
+    });
+    //zTree = $.fn.zTree.getZTreeObj("treeNodes");
+    rMenu = $('#rMenu');
+
+});
+
+</script>
+{% endblock %}
