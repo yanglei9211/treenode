@@ -16,32 +16,60 @@
 {% endblock %}
 {% block js %}
 <script src="{{ static_url('ztree/js/jquery.ztree.core.min.js') }}"></script>
+<script src="{{ static_url('ztree/js/jquery.ztree.excheck.js') }}"></script>
+<script src="{{ static_url('ztree/js/jquery.ztree.exedit.js') }}"></script>
 <script>
 
 var zTreeObj;
 var setting = {
-    view: {
-        dblClickExpand: false
+    edit: {
+        enable: true,
+        showRemoveBtn: false,
+        showRenameBtn: false,
+        drag:{
+            isCopy: true,
+            isMove: true,
+            prev: true,
+            inner: true,
+            next: true
+        }
     },
     callback: {
-        onRightClick: OnRightClick
+        onRightClick: OnRightClick,
+        beforeDrag: beforeDrag,
+        beforeDrop: beforeDrop
+    },
+    data: {
+        simpleData:{
+            enable:true
+        }
     }
 };
 
 var zNodes = [
-    {id:1, name:"test1", open:true, children:[
-        {id:11, name:'test1_1'}, {id:12, name:'test1_2'}]},
-    {id:2, name:"test2", open:true, children:[
-        {id:21, name:'test2_1'}, {id:22, name:'test2_2'}]}
+    {id:1, pId:0, name:'test_1', open:true},
+    {id:11, pId:1, name:'test_1_1'},
+    {id:12, pId:1, name:'test_1_2', open:true},
+    {id:121, pId:12, name:'test_1_2_1'},
+    {id:122, pId:12, name:'test_1_2_2'},
+    {id:123, pId:12, name:'test_1_2_3'},
+    {id:13, pId:1, name:'test_1_3', open:true},
+    {id:131, pId:13, name:'test_1_3_1'},
+    {id:132, pId:13, name:'test_1_3_2'},
+    {id:133, pId:13, name:'test_1_3_3'},
+    {id:2, pId:0, name:'test_2',open:true},
+    {id:21, pId:2, name:'test_2_1'},
+    {id:22, pId:2, name:'test_2_2', open:true},
+    {id:221, pId:22, name:'test_2_2_1'},
+    {id:222, pId:22, name:'test_2_2_2'},
+    {id:23, pId:2, name:'test_2_3'},
 ];
 var zTree, rMenu;
-$(document).ready(function () {
-    $.fn.zTree.init($('#treeDemo'), setting, zNodes);
-    zTree = $.fn.zTree.getZTreeObj("treeDemo");
-    rMenu = $('#rMenu');
-});
 
 function OnRightClick(event, treeId, treeNode){
+    if (event.target.className.toLowerCase() != "node_name"){
+        return
+    }
     if (!treeNode && event.target.tagName.toLowerCase() != "button" && $(event.target).parent("a").length == 0){
         zTree.cancelSelectedNode();
         showRMenu("root", event.clientX, event.clientY);
@@ -50,6 +78,20 @@ function OnRightClick(event, treeId, treeNode){
         showRMenu("node", event.clientX, event.clientY);
     }
 }
+
+function beforeDrag(treeId, treeNodes){
+    for (var i=0, l=treeNodes.length; i<l; i++){
+        if (treeNodes[i].drag === false){
+            return false
+        }
+    }
+    return true
+}
+
+function beforeDrop(treeId, treeNodes, targetNode, moveType) {
+    return targetNode ? targetNode.drop !== false: true
+}
+
 
 function showRMenu(type, x, y){
     $('#rMenu ul').show();
@@ -84,12 +126,24 @@ $('#r_add').click(function () {
 
 $('#r_update').click(function () {
     hideRMent();
-    alert('update');
+    var target = zTree.getSelectedNodes()[0];
+    var pre = target.getPreNode();
+    var suff = target.getNextNode();
+    alert(zTree.getNodeIndex(target));
+    console.log(pre);
+    console.log(suff);
+    //alert('update');
 });
 
 $('#r_del').click(function () {
     hideRMent();
     alert('del');
 })
+
+$(document).ready(function () {
+    $.fn.zTree.init($('#treeDemo'), setting, zNodes);
+    zTree = $.fn.zTree.getZTreeObj("treeDemo");
+    rMenu = $('#rMenu');
+});
 </script>
 {% endblock %}
